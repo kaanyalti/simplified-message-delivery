@@ -78,10 +78,10 @@ L:
 			break
 		}
 
-		trimmed := strings.ToUpper(strings.TrimSpace(string(data)))
+		trimmed := strings.TrimSpace(string(data))
 		fmt.Printf("Incoming data: %s\n", trimmed)
 
-		switch trimmed {
+		switch strings.ToUpper(trimmed) {
 		case "STOP":
 			fmt.Println("Closing connection")
 			break L
@@ -90,6 +90,12 @@ L:
 			c.Conn.Write([]byte(fmt.Sprintf("%s\n", ids)))
 		case "SELF":
 			c.Conn.Write([]byte(fmt.Sprintf("Your ID: %s\n", c.ID.String())))
+		default:
+			err := s.BroadcastMessage(trimmed, c.ID)
+			if err != nil {
+				fmt.Println(err.Error())
+				break L
+			}
 		}
 	}
 	err := c.Conn.Close()
@@ -109,4 +115,17 @@ func (s *Server) GetConnectionIds(excludeId uuid.UUID) []string {
 		}
 	}
 	return ids
+}
+
+func (s *Server) BroadcastMessage(message string, excludeId uuid.UUID) error {
+	for id, conn := range s.Connections {
+		if excludeId == id {
+			continue
+		}
+		_, err := conn.Conn.Write([]byte(fmt.Sprintf("%s\n", message)))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
